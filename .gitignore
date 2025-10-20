@@ -1,0 +1,29 @@
+# Compiled binaries
+app.host
+app.cuda
+*.out
+*.exe
+
+# Object files
+*.o
+*.obj
+
+# CUDA temporary files
+*.ptx
+*.cubin
+
+# CMake / Make temporary files
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile.user
+
+# Editor / IDE temporary files
+*.swp
+*.swo
+*.DS_Store
+*.vscode/
+*.idea/
+
+# Logs
+*.log

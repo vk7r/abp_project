@@ -25,6 +25,20 @@ __global__ void compute_spmv(const std::size_t N,
                              Number *y)
 {
   // TODO implement for GPU
+
+  // Each thread handles one row of the matrix
+  const unsigned int row = threadIdx.x + blockIdx.x * blockDim.x;
+  if (row < N)
+  {
+      Number sum = 0;
+      // Loop over the non-zero entries in this row
+      for (std::size_t idx = row_starts[row]; idx < row_starts[row + 1]; ++idx)
+      {
+          unsigned int col = column_indices[idx]; // which column the value belongs to
+          sum += values[idx] * x[col];            // multiply and accumulate
+      }
+      y[row] = sum; // store the result
+  }
 }
 #endif
 
@@ -283,6 +297,12 @@ public:
       {
 #ifndef DISABLE_CUDA
         // TODO implement for GPU (with CRS and ELLPACK/SELL-C-sigma)
+
+        // Launches GPU kernel does spmv + w8's for completion
+        const unsigned int n_blocks = (n_rows + block_size - 1) / block_size;
+        compute_spmv<Number><<<n_blocks, block_size>>>(
+            n_rows, row_starts, column_indices, values, src.begin(), dst.begin());
+        cudaDeviceSynchronize(); // wait for GPU to finish
         AssertCuda(cudaPeekAtLastError());
 #endif
       }

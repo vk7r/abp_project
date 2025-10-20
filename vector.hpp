@@ -128,6 +128,20 @@ __global__ void vector_update(const std::size_t N,
                               Number *destination)
 {
   // TODO implement for GPU
+  
+  // each thread finds its global index in the vector
+  // threadIdx.x = thread's local index in its block
+  // blockIdx.x = which block this thread belongs to
+  // blockDim.x = number of threads per block 
+  // each thread finds its own vector from its own thread_idx and what block. dim says hiow
+  
+  const unsigned int idx = threadIdx.x + blockIdx.x * blockDim.x;
+  
+  // only update if idx is inside the vector
+  if (idx < N)
+  {
+    destination[idx] = scalar1 * destination[idx] + scalar2 * source[idx];
+  }
 }
 
 
@@ -303,6 +317,14 @@ public:
       {
 #ifndef DISABLE_CUDA
         // TODO implement for GPU
+        // Updates each element of the vector using a weighted sum of itself and another vector
+        // Each element i: this[i] = my_scalar * this[i] + other_scalar * other[i]
+        // Moves solution toward correct result each iteration
+        // On GPU, each thread updates one element in parallel
+
+        const unsigned int n_blocks = (local_size + block_size - 1) / block_size;
+        vector_update<<<n_blocks, block_size>>>(local_size, my_scalar, other_scalar, other.data, data);
+        cudaDeviceSynchronize();
 #endif
       }
     else
@@ -379,14 +401,15 @@ public:
         return *this;
       }
     else
-      {
-        Vector<Number> other(global_size,
-                             std::make_pair(locally_owned_range_start,
-                                            locally_owned_range_start +
-                                              local_size),
-                             MemorySpace::CUDA,
-                             communicator);
+      {                             
         // TODO implement copy from host to device for GPU
+        Vector<Number> other(global_size,
+                            std::make_pair(locally_owned_range_start,
+                                            locally_owned_range_start + local_size),
+                            MemorySpace::CUDA,
+                            communicator);
+        AssertCuda(cudaMemcpy(other.begin(), data, local_size * sizeof(Number),
+                              cudaMemcpyHostToDevice));
         return other;
       }
   }
@@ -401,7 +424,9 @@ public:
                                               local_size),
                              MemorySpace::Host,
                              communicator);
+
         // TODO implement copy from device to host for GPU
+        AssertCuda(cudaMemcpy(other.begin(), data, local_size * sizeof(Number), cudaMemcpyDeviceToHost));
         return other;
       }
     else
